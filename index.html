@@ -30,6 +30,11 @@
   .icon:hover{color:var(--ink);border-color:#35504d}
   .icon.on{color:var(--accent);border-color:var(--accent)}
   .icon svg{width:18px;height:18px}
+  .icon{position:relative}
+  @media (hover:hover){
+    .icon[data-tip]:hover::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);right:0;white-space:nowrap;
+      background:var(--bg2);border:1px solid var(--line);color:var(--ink);font-size:12px;padding:6px 10px;border-radius:8px;pointer-events:none;z-index:7}
+  }
 
   .stage{flex:1;width:100%;display:grid;place-items:center;position:relative;min-height:260px;padding:10px 0 28px}
   .ringwrap{position:relative;width:min(70vw,52vh,420px);aspect-ratio:1}
@@ -112,10 +117,10 @@
   <header>
     <div class="brand">Mama <span>atmet</span></div>
     <div class="icons">
-      <button class="icon on" id="soundBtn" title="Töne an/aus" aria-label="Töne an/aus">
+      <button class="icon on" id="soundBtn" data-tip="Ton an / aus" aria-label="Töne an/aus">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
       </button>
-      <button class="icon" id="eyesBtn" title="Augen-zu-Modus: nur Klang" aria-label="Augen-zu-Modus">
+      <button class="icon" id="eyesBtn" data-tip="Augen-zu-Modus" aria-label="Augen-zu-Modus">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 11c2.5 3 5.5 4.5 9 4.5s6.5-1.5 9-4.5"/><path d="M6 14.5 4.5 17M12 15.5V18.5M18 14.5l1.5 2.5"/></svg>
       </button>
     </div>
@@ -216,7 +221,7 @@ function renderTechs(){
 }
 const SNDS=[{id:'weich',l:'Weich'},{id:'glocke',l:'Glöckchen'},{id:'meer',l:'Meer'},{id:'signal',l:'Signal'}];
 function renderSnds(){ $('snds').innerHTML = SNDS.map(x=>`<button class="dur ${x.id===st.snd?'sel':''}" data-id="${x.id}">${x.l}</button>`).join(''); }
-function demo(){ unlockMobileAudio(); initAudio(); if(!ctx) return; if(ctx.state==='suspended') ctx.resume(); master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(+$('vol').value,ctx.currentTime);
+function demo(){ if(!st.sound) return; unlockMobileAudio(); initAudio(); if(!ctx) return; if(ctx.state==='suspended') ctx.resume(); master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(+$('vol').value,ctx.currentTime);
   const t=ctx.currentTime+.05; tone('in',t,2.5); tone('out',t+2.5,3);
   if(st.snd==='signal') $('desc').textContent='Signal: zwei Töne aufwärts = einatmen · zwei Töne abwärts = ausatmen · ein Ton = halten. Immer gleich, ohne Hall – gut, wenn du klare, vorhersehbare Reize magst.';
   else $('desc').textContent=st.tech.desc; if(!running) closeAudioLater(6500); }
@@ -226,13 +231,13 @@ function renderDurs(){
 $('techs').onclick=e=>{const b=e.target.closest('.tech'); if(!b) return; st.tech=TECHS.find(t=>t.id===b.dataset.id); renderTechs(); save(); preview();};
 $('durs').onclick=e=>{const b=e.target.closest('.dur'); if(!b) return; st.dur=DURS.find(d=>d.s==b.dataset.s); renderDurs(); save();};
 $('custom').oninput=()=>{save()};
-$('snds').onclick=e=>{const b=e.target.closest('.dur'); if(!b) return; st.snd=b.dataset.id; if(!st.sound){st.sound=true; syncIcons();} renderSnds(); save(); if(!running) demo();};
+$('snds').onclick=e=>{const b=e.target.closest('.dur'); if(!b) return; st.snd=b.dataset.id; renderSnds(); save(); if(!running && st.sound) demo();};
 function syncIcons(){ $('soundBtn').classList.toggle('on',st.sound); $('wave').style.opacity=st.sound?1:0;
   $('eyesBtn').classList.toggle('on',st.eyes); document.body.classList.toggle('eyes',st.eyes&&running); }
 let toastT; function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),3200); }
-$('soundBtn').onclick=()=>{st.sound=!st.sound; if(master&&ctx) master.gain.setTargetAtTime(st.sound?+$('vol').value:0,ctx.currentTime,.1); syncIcons(); save();};
-$('eyesBtn').onclick=()=>{st.eyes=!st.eyes; toast(st.eyes?'Augen-zu-Modus an: Während der Übung wird der Bildschirm dunkel, die Töne führen dich.':'Augen-zu-Modus aus'); if(st.eyes&&!st.sound){st.sound=true; if(master) master.gain.setTargetAtTime(+$('vol').value,ctx.currentTime,.1);} syncIcons(); save();};
-$('vol').oninput=()=>{ if(master&&st.sound) master.gain.setTargetAtTime(+$('vol').value,ctx.currentTime,.05); };
+$('soundBtn').onclick=()=>{st.sound=!st.sound; toast(st.sound?'Ton an: Die Klänge führen dich durch die Übung.':'Ton aus: Die App bleibt komplett still.'); if(master&&ctx) master.gain.setTargetAtTime(st.sound?+$('vol').value:0,ctx.currentTime,.1); syncIcons(); save();};
+$('eyesBtn').onclick=()=>{st.eyes=!st.eyes; toast(st.eyes?'Augen-zu-Modus an: Während der Übung wird der Bildschirm dunkel, die Töne führen dich.':'Augen-zu-Modus aus'); syncIcons(); save();};
+$('vol').oninput=()=>{ /* Lautstärke ändert nichts, solange der Ton aus ist */ if(master&&st.sound) master.gain.setTargetAtTime(+$('vol').value,ctx.currentTime,.05); };
 
 /* ---------- Audio ---------- */
 let ctx, master, rev, noiseBuf, closeT;
@@ -371,7 +376,7 @@ function loop(){
       if(!queue.length || now >= nextT){ stop(true); return; } break;
     }
     const k=ORDER[phaseIdx], d=p[phaseIdx];
-    if(d>0){ queue.push({k,t:nextT,d}); if(st.sound||st.eyes) tone(k,nextT,d); nextT+=d; }
+    if(d>0){ queue.push({k,t:nextT,d}); if(st.sound) tone(k,nextT,d); nextT+=d; }
     phaseIdx=(phaseIdx+1)%4;
   }
   while(queue.length>1 && queue[1].t<=now) queue.shift();
