@@ -215,7 +215,7 @@ function renderTechs(){
 }
 const SNDS=[{id:'weich',l:'Weich'},{id:'glocke',l:'Glöckchen'},{id:'meer',l:'Meer'},{id:'signal',l:'Signal'}];
 function renderSnds(){ $('snds').innerHTML = SNDS.map(x=>`<button class="dur ${x.id===st.snd?'sel':''}" data-id="${x.id}">${x.l}</button>`).join(''); }
-function demo(){ initAudio(); if(!ctx) return; if(ctx.state==='suspended') ctx.resume(); master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(+$('vol').value,ctx.currentTime);
+function demo(){ unlockMobileAudio(); initAudio(); if(!ctx) return; if(ctx.state==='suspended') ctx.resume(); master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(+$('vol').value,ctx.currentTime);
   const t=ctx.currentTime+.05; tone('in',t,2.5); tone('out',t+2.5,3);
   if(st.snd==='signal') $('desc').textContent='Signal: zwei Töne aufwärts = einatmen · zwei Töne abwärts = ausatmen · ein Ton = halten. Immer gleich, ohne Hall – gut, wenn du klare, vorhersehbare Reize magst.';
   else $('desc').textContent=st.tech.desc; if(!running) closeAudioLater(6500); }
@@ -235,7 +235,25 @@ $('vol').oninput=()=>{ if(master&&st.sound) master.gain.setTargetAtTime(+$('vol'
 
 /* ---------- Audio ---------- */
 let ctx, master, rev, noiseBuf, closeT;
-function closeAudioLater(ms){ clearTimeout(closeT); closeT=setTimeout(()=>{ if(!running&&ctx){ try{ctx.close()}catch(e){} ctx=null; master=null; } },ms); }
+function closeAudioLater(ms){ clearTimeout(closeT); closeT=setTimeout(()=>{ if(!running&&ctx){ try{ctx.close()}catch(e){} ctx=null; master=null; try{unlockEl&&unlockEl.pause()}catch(e){} } },ms); }
+// iOS: Web Audio is muted by the silent switch. Switching the audio session to "playback"
+// (Safari 17+) or playing a silent <audio> element makes it audible like a music app.
+let unlockEl;
+function unlockMobileAudio(){
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+  try{
+    if(!unlockEl){
+      const sr=8000, n=sr/2, buf=new ArrayBuffer(44+n*2), v=new DataView(buf);
+      const w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i))};
+      w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true);
+      v.setUint16(22,1,true); v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+      w(36,'data'); v.setUint32(40,n*2,true);
+      unlockEl=document.createElement('audio'); unlockEl.src=URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+      unlockEl.loop=true; unlockEl.setAttribute('playsinline',''); unlockEl.preload='auto';
+    }
+    const pr=unlockEl.play(); if(pr&&pr.catch) pr.catch(()=>{});
+  }catch(e){}
+}
 function initAudio(){
   if(ctx) return;
   const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
@@ -320,7 +338,7 @@ function ease(x){return x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2}
 
 function start(){
   const p=pattern(); if(p[0]<=0||p[2]<=0) { $('desc').textContent='Ein- und Ausatmen brauchen mindestens 1 Sekunde.'; return; }
-  clearTimeout(closeT); initAudio();
+  clearTimeout(closeT); unlockMobileAudio(); initAudio();
   if(ctx){ if(ctx.state!=='running') ctx.resume();
     try{ const sb=ctx.createBufferSource(); sb.buffer=ctx.createBuffer(1,1,22050); sb.connect(ctx.destination); sb.start(0); }catch(e){}
     master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(st.sound?+$('vol').value:0, ctx.currentTime); }
@@ -335,7 +353,7 @@ function stop(finished){
   running=false; cancelAnimationFrame(raf);
   document.body.classList.remove('running','peek','eyes');
   if(master&&ctx){ master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(0,ctx.currentTime,.08);
-    closeAudioLater(400); }
+    closeAudioLater(400); try{unlockEl&&unlockEl.pause()}catch(e){} }
   $('phase').textContent='Bereit'; $('count').innerHTML='&nbsp;'; $('timer').textContent='';
   prog.style.strokeDashoffset=603.2; setVisual(0);
   const el = Math.max(0, clock()-tStart);
