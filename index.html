@@ -2,7 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#120e12">
 <title>Mama atmet – Atemguide für Mamas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,13 +14,15 @@
     --accent:#f0b8a8; --warm:#f2c38b; --cool:#86b8e8;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html{height:100%;background:#120e12}body{min-height:100%;min-height:100dvh}
   body{background:radial-gradient(120% 90% at 50% 0%,#2a1d22 0%,var(--bg) 60%);color:var(--ink);
-    font-family:Inter,system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+    font-family:Inter,system-ui,sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased;background-attachment:fixed}
+  body.running{overflow:hidden;height:100dvh}
   button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-  .app{height:100%;display:flex;flex-direction:column;align-items:center}
+  .app{min-height:100dvh;display:flex;flex-direction:column;align-items:center}
+  body.running .app{height:100dvh}
 
-  header{width:100%;max-width:920px;display:flex;justify-content:space-between;align-items:center;padding:20px 24px;transition:opacity .8s}
+  header{width:100%;max-width:920px;display:flex;justify-content:space-between;align-items:center;padding:calc(20px + env(safe-area-inset-top)) 24px 20px;transition:opacity .8s}
   .brand{font-family:Fraunces,serif;font-weight:500;font-size:22px;letter-spacing:.01em}
   .brand span{color:var(--accent)}
   .icons{display:flex;gap:6px}
@@ -27,7 +31,7 @@
   .icon.on{color:var(--accent);border-color:var(--accent)}
   .icon svg{width:18px;height:18px}
 
-  .stage{flex:1;width:100%;display:grid;place-items:center;position:relative;min-height:300px}
+  .stage{flex:1;width:100%;display:grid;place-items:center;position:relative;min-height:260px;padding:10px 0 28px}
   .ringwrap{position:relative;width:min(70vw,52vh,420px);aspect-ratio:1}
   .ringwrap svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
   .orb{position:absolute;inset:0;margin:auto;width:100%;height:100%;border-radius:50%;
@@ -39,7 +43,7 @@
 
   .timer{position:absolute;bottom:8px;color:var(--mute);font-size:13px;letter-spacing:.14em;font-variant-numeric:tabular-nums;transition:opacity .8s}
 
-  .panel{width:100%;max-width:920px;padding:8px 20px 28px;transition:opacity .8s,transform .8s}
+  .panel{width:100%;max-width:920px;padding:8px 20px calc(28px + env(safe-area-inset-bottom));transition:opacity .8s,transform .8s}
   .techs{display:flex;gap:10px;overflow-x:auto;padding:4px 4px 14px;scrollbar-width:none;scroll-snap-type:x mandatory}
   .techs::-webkit-scrollbar{display:none}
   .tech{flex:0 0 auto;scroll-snap-align:start;width:168px;text-align:left;padding:14px 14px 12px;border-radius:16px;border:1px solid var(--line);background:rgba(16,26,30,.6);transition:.2s}
@@ -51,7 +55,7 @@
   .tech .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
 
   .row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:6px}
-  .durs{display:flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:999px}
+  .durs{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:4px;border:1px solid var(--line);border-radius:999px}
   .dur{padding:7px 13px;border-radius:999px;font-size:13px;color:var(--mute)}
   .dur.sel{background:var(--ink);color:var(--bg)}
   .start{padding:14px 34px;border-radius:999px;background:var(--accent);color:#0b1714;font-weight:600;letter-spacing:.02em;transition:.2s}
@@ -66,7 +70,7 @@
 
   /* running state */
   body.running header, body.running .panel{opacity:0;pointer-events:none}
-  body.running .panel{transform:translateY(16px)}
+  body.running .panel{transform:translateY(16px);position:absolute;left:0;right:0;bottom:0;visibility:hidden}
   body.running.peek header{opacity:1;pointer-events:auto}
   .stopbtn{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:10px 22px;border-radius:999px;border:1px solid var(--line);color:var(--mute);font-size:13px;opacity:0;pointer-events:none;transition:opacity .6s}
   body.running .stopbtn{opacity:.0;pointer-events:auto}
@@ -87,13 +91,23 @@
   .vol{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:12px}
   .vol input{accent-color:var(--accent);width:90px}
   .hint{color:var(--mute);font-size:12px}
-  @media (max-width:560px){.row{justify-content:center}.desc{text-align:center;margin-inline:auto}}
+  @media (max-width:560px){
+    header{padding:14px 16px}
+    .ringwrap{width:min(68vw,40vh,320px)}
+    body.running .ringwrap{width:min(82vw,60vh)}
+    .panel{padding:4px 14px 24px}
+    .tech{width:150px}
+    .row{gap:10px}
+    .start{width:100%}
+    .vol{width:100%;justify-content:center}
+    .durs{flex-wrap:wrap;justify-content:center}
+    .hint{text-align:center}.row{justify-content:center}.desc{text-align:center;margin-inline:auto}}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <div class="brand">Mama<span>atmet</span></div>
+    <div class="brand">Mama <span>atmet</span></div>
     <div class="icons">
       <button class="icon on" id="soundBtn" title="Töne an/aus" aria-label="Töne an/aus">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
@@ -310,7 +324,7 @@ function start(){
   if(ctx){ if(ctx.state!=='running') ctx.resume();
     try{ const sb=ctx.createBufferSource(); sb.buffer=ctx.createBuffer(1,1,22050); sb.connect(ctx.destination); sb.start(0); }catch(e){}
     master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setValueAtTime(st.sound?+$('vol').value:0, ctx.currentTime); }
-  running=true; breaths=0; queue=[]; phaseIdx=0; lastShown=null;
+  window.scrollTo({top:0,behavior:'smooth'}); running=true; breaths=0; queue=[]; phaseIdx=0; lastShown=null;
   tStart = clock()+0.9; nextT=tStart;
   document.body.classList.add('running'); syncIcons(); peek();
   $('phase').textContent='Ankommen'; $('count').innerHTML='&nbsp;';
